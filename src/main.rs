@@ -4,8 +4,6 @@ use discord::Message;
 use reqwest::{Error, Response};
 use serde_derive::{Deserialize, Serialize};
 use warp::{Filter, Reply};
-use log::{self, info, warn};
-use pretty_env_logger;
 
 pub mod discord;
 
@@ -15,12 +13,6 @@ const PORT: u16 = 8010;
 struct DiscordWebhookBody {
     url: String,
     message: Message,
-}
-
-#[derive(Deserialize, Serialize)]
-struct RobloxPost {
-    webhook: String,
-
 }
 
 async fn send_webhook(url: String, message: Message) -> Result<Response, Error> {
@@ -35,7 +27,6 @@ async fn send_webhook(url: String, message: Message) -> Result<Response, Error> 
 }
 
 async fn handle_discord_body(body: DiscordWebhookBody) -> Result<Response, Error> {
-    info!("{:?}", body);
     let body_clone = body.clone();
     let result = send_webhook(body_clone.url, body_clone.message).await;
     match result {
@@ -46,22 +37,17 @@ async fn handle_discord_body(body: DiscordWebhookBody) -> Result<Response, Error
 
 async fn parse_discord_body(body: DiscordWebhookBody) -> Result<impl Reply, Infallible> {
     match handle_discord_body(body).await {
-        Ok(info) => {
-            info!("{:?}", info);
+        Ok(_info) => {
             Ok(warp::reply::json(&"Posted!".to_string()))
         }
         Err(e) => {
-            warn!("{:?}", e);
-            let error_string: String = e.to_string();
-            Ok(warp::reply::json(&error_string))
+            Ok(warp::reply::json(&e.to_string()))
         },
     }
 }
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
-
     let discord_handler = warp::post()
         .and(warp::path("discord"))
         .and(warp::body::content_length_limit(1024 * 16))
