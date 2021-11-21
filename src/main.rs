@@ -34,7 +34,7 @@ async fn parse_discord_body(body: DiscordWebhookBody) -> Result<impl Reply, Infa
     match result {
         Ok(mut response) => {
             let body_string = response.body_string().await.unwrap();
-            if body_string == " " {
+            if body_string == "" {
                 Ok(warp::reply::json(&"Posted!".to_string()))
             } else {
                 Ok(warp::reply::json(&body_string))
