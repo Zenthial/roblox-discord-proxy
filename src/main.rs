@@ -1,8 +1,8 @@
 use std::convert::Infallible;
 
 use discord::Message;
-use reqwest::{Error, Response};
 use serde_derive::{Deserialize, Serialize};
+use surf::{Error, Response};
 use warp::{Filter, Reply};
 
 pub mod discord;
@@ -16,14 +16,8 @@ struct DiscordWebhookBody {
 }
 
 async fn send_webhook(url: String, message: Message) -> Result<Response, Error> {
-    let client = reqwest::Client::new();
-    let result = client.post(url)
-        .json(&message)
-        .send()
-        .await?;
-
-    std::mem::forget(client);
-    Ok(result)
+    let res = surf::post(url).body_json(&message)?.await?;
+    Ok(res)
 }
 
 async fn handle_discord_body(body: DiscordWebhookBody) -> Result<Response, Error> {
@@ -36,9 +30,15 @@ async fn handle_discord_body(body: DiscordWebhookBody) -> Result<Response, Error
 }
 
 async fn parse_discord_body(body: DiscordWebhookBody) -> Result<impl Reply, Infallible> {
-    match handle_discord_body(body).await {
-        Ok(_info) => {
-            Ok(warp::reply::json(&"Posted!".to_string()))
+    let result = handle_discord_body(body).await;
+    match result {
+        Ok(mut response) => {
+            let body_string = response.body_string().await.unwrap();
+            if body_string == " " {
+                Ok(warp::reply::json(&"Posted!".to_string()))
+            } else {
+                Ok(warp::reply::json(&body_string))
+            }
         }
         Err(e) => {
             Ok(warp::reply::json(&e.to_string()))
